@@ -1,0 +1,25 @@
+From b0e03bac1f3b420ac1b7ac76d6008dd4ed942cbf Mon Sep 17 00:00:00 2001
+From: Daiki Ueno <ueno@unixuser.org>
+Date: Mon, 13 May 2013 15:45:33 +0900
+Subject: [PATCH] Fix ibus-m17n-preferences.ui location
+
+---
+ src/setup.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/setup.c b/src/setup.c
+index 513fabf..4de8fb1 100644
+--- a/src/setup.c
++++ b/src/setup.c
+@@ -570,7 +570,7 @@ setup_dialog_new (IBusConfig *config,
+ 
+     error = NULL;
+     if (gtk_builder_add_from_file (builder,
+-                                   PKGDATADIR "setup/ibus-m17n-preferences.ui",
++                                   PKGDATADIR "/setup/ibus-m17n-preferences.ui",
+                                    &error) == 0) {
+         g_warning ("can't read ibus-m17n-preferences.ui: %s",
+                    error->message);
+-- 
+1.8.1.4
+

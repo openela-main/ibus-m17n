@@ -1,0 +1,90 @@
+From 109acb63611f5fbd994aa56cd0b4a9b1b2eb178e Mon Sep 17 00:00:00 2001
+From: Daiki Ueno <ueno@unixuser.org>
+Date: Thu, 5 Jun 2014 12:17:36 +0900
+Subject: [PATCH] build: Switch from intltool to gettext-0.19
+
+---
+ configure.ac                      |  3 +--
+ po/POTFILES.in                    |  2 +-
+ src/Makefile.am                   | 19 ++++++++++++++-----
+ src/ibus-setup-m17n.desktop.in.in |  4 ++--
+ 4 files changed, 18 insertions(+), 10 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index 30d44ff..dab9354 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -48,7 +48,6 @@ AM_PROG_CC_C_O
+ AC_PROG_CXX
+ AC_ISC_POSIX
+ AC_HEADER_STDC
+-IT_PROG_INTLTOOL([0.35.0])
+ AM_PROG_LIBTOOL
+ 
+ # check ibus
+@@ -104,7 +103,7 @@ AC_SUBST(GETTEXT_PACKAGE)
+ AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE", [Define to the read-only architecture-independent data directory.])
+ 
+ AM_GNU_GETTEXT([external])
+-AM_GNU_GETTEXT_VERSION(0.16.1)
++AM_GNU_GETTEXT_VERSION([0.19])
+ 
+ 
+ # OUTPUT files
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index bb3bd6e..4f81b75 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -1,5 +1,5 @@
+ src/engine.c
+ src/m17nutil.c
+ src/main.c
+-[type: gettext/glade]src/ibus-m17n-preferences.ui
++src/ibus-m17n-preferences.ui
+ src/ibus-setup-m17n.desktop.in.in
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 68ec953..c23e680 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -131,11 +131,20 @@ m17n.xml: m17n.xml.in
+ 
+ desktop_in_in_files = ibus-setup-m17n.desktop.in.in
+ desktop_in_files = $(desktop_in_in_files:.in.in=.in)
++desktop_files = $(desktop_in_files:.desktop.in=.desktop)
+ 
+-$(desktop_in_files): %.desktop.in: %.desktop.in.in Makefile
+-	$(AM_V_GEN) $(edit) $< > $@.tmp && mv $@.tmp $@
++$(desktop_in_files):
++	$(AM_V_GEN) $(MSGFMT) --desktop --template $@.in -o $@-t \
++	  -d $(top_srcdir)/po && mv $@-t $@
+ 
+-desktopdir=$(datadir)/applications
+-desktop_DATA = $(desktop_in_files:.desktop.in=.desktop)
++$(desktop_files):
++	@rm -f $@
++	$(AM_V_GEN) srcdir=''; \
++	  test -f ./$@.in || srcdir=$(srcdir)/; \
++	  $(edit) $${srcdir}$@.in >$@-t && mv $@-t $@
+ 
+-@INTLTOOL_DESKTOP_RULE@
++ibus-setup-m17n.desktop.in: ibus-setup-m17n.desktop.in.in
++ibus-setup-m17n.desktop: ibus-setup-m17n.desktop.in
++
++desktopdir=$(datadir)/applications
++desktop_DATA = $(desktop_files)
+diff --git a/src/ibus-setup-m17n.desktop.in.in b/src/ibus-setup-m17n.desktop.in.in
+index a380cb3..110fcfb 100644
+--- a/src/ibus-setup-m17n.desktop.in.in
++++ b/src/ibus-setup-m17n.desktop.in.in
+@@ -1,6 +1,6 @@
+ [Desktop Entry]
+-_Name=IBus M17N Setup
+-_Comment=Set up IBus M17N engine
++Name=IBus M17N Setup
++Comment=Set up IBus M17N engine
+ Exec=@libexecdir@/ibus-setup-m17n
+ NoDisplay=true
+ Type=Application
+-- 
+1.9.0
+

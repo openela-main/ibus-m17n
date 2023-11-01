@@ -1,0 +1,1928 @@
+diff --git a/autogen.sh b/autogen.sh
+index 99be006..f8bf2b0 100755
+--- a/autogen.sh
++++ b/autogen.sh
+@@ -18,10 +18,10 @@ which gnome-autogen.sh || {
+     exit 1
+ }
+ 
+-export CFLAGS="-g -O0"
+-export CXXFLAGS="$CFLAGS"
++export CFLAGS=${CFLAGS-"-Wall"}
++export CXXFLAGS=${CXXFLAGS-"$CFLAGS"}
+ 
+ ACLOCAL_FLAGS="$ACLOCAL_FLAGS -I m4"
+ REQUIRED_AUTOMAKE_VERSION=1.10
+ 
+-. gnome-autogen.sh
++. gnome-autogen.sh "$@"
+diff --git a/configure.ac b/configure.ac
+index 0548537..30d44ff 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -48,6 +48,7 @@ AM_PROG_CC_C_O
+ AC_PROG_CXX
+ AC_ISC_POSIX
+ AC_HEADER_STDC
++IT_PROG_INTLTOOL([0.35.0])
+ AM_PROG_LIBTOOL
+ 
+ # check ibus
+@@ -111,8 +112,6 @@ AC_CONFIG_FILES([ po/Makefile.in
+ Makefile
+ ibus-m17n.spec
+ src/Makefile
+-src/m17n.xml.in
+-src/default.xml.in
+ icons/Makefile
+ m4/Makefile
+ ])
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index a426e33..bb3bd6e 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -1,3 +1,5 @@
+ src/engine.c
+ src/m17nutil.c
+ src/main.c
++[type: gettext/glade]src/ibus-m17n-preferences.ui
++src/ibus-setup-m17n.desktop.in.in
+diff --git a/po/POTFILES.skip b/po/POTFILES.skip
+new file mode 100644
+index 0000000..3667f37
+--- /dev/null
++++ b/po/POTFILES.skip
+@@ -0,0 +1 @@
++src/ibus-setup-m17n.desktop.in
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 39d6523..68ec953 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -19,15 +19,14 @@
+ # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ 
+ AM_CFLAGS = \
+-	@IBUS_CFLAGS@ \
+-	@M17N_CFLAGS@ \
++	$(IBUS_CFLAGS) \
++	$(M17N_CFLAGS) \
+ 	-DPKGDATADIR=\"$(pkgdatadir)\" \
+ 	-DLIBEXECDIR=\"$(libexecdir)\" \
+-	-DSETUPDIR=\"$(setupdir)\" \
+ 	$(NULL)
+ AM_LDADD = \
+-	@IBUS_LIBS@ \
+-	@M17N_LIBS@ \
++	$(IBUS_LIBS) \
++	$(M17N_LIBS) \
+ 	$(NULL)
+ 
+ check_PROGRAMS = \
+@@ -38,6 +37,7 @@ TESTS = \
+ 	$(check_PROGRAMS) \
+ 	$(NULL)
+ 
++TESTS_ENVIRONMENT = IBUS_M17N_PKGDATADIR=$(builddir)
+ 
+ test_m17n_SOURCES = \
+ 	test.c \
+@@ -46,10 +46,13 @@ test_m17n_CFLAGS = \
+ 	$(AM_CFLAGS) \
+ 	$(NULL)
+ test_m17n_LDADD = \
+-	libm17ncommon.a	\
++	libm17ncommon.la \
+ 	$(AM_LDADD) \
+ 	$(NULL)
+ 
++test: ibus-engine-m17n
++	$(builddir)/ibus-engine-m17n
++
+ libexec_PROGRAMS = ibus-engine-m17n
+ 
+ noinst_LTLIBRARIES = libm17ncommon.la
+@@ -67,8 +70,8 @@ ibus_engine_m17n_SOURCES = \
+ 	$(NULL)
+ ibus_engine_m17n_LDADD = \
+ 	libm17ncommon.la \
+-	@IBUS_LIBS@ \
+-	@M17N_LIBS@ \
++	$(IBUS_LIBS) \
++	$(M17N_LIBS) \
+ 	$(NULL)
+ 
+ if HAVE_GTK
+@@ -78,58 +81,61 @@ ibus_setup_m17n_SOURCES = \
+ 	setup.c \
+ 	$(NULL)
+ ibus_setup_m17n_CFLAGS = \
+-	@GTK_CFLAGS@ \
++	$(GTK_CFLAGS) \
+ 	$(AM_CFLAGS) \
+ 	$(NULL)
+ ibus_setup_m17n_LDADD = \
+ 	libm17ncommon.la \
+-	@IBUS_LIBS@ \
+-	@M17N_LIBS@ \
+-	@GTK_LIBS@ \
++	$(IBUS_LIBS) \
++	$(M17N_LIBS) \
++	$(GTK_LIBS) \
+ 	$(NULL)
++
++setupdir = $(pkgdatadir)/setup
+ dist_setup_DATA = \
+ 	ibus-m17n-preferences.ui \
+ 	$(NULL)
+ endif
+ 
+-setup_DATA = \
++pkgdata_DATA = \
+ 	default.xml \
+ 	$(NULL)
+-setupdir = $(pkgdatadir)/setup
+ 
+ component_DATA = \
+ 	m17n.xml \
+ 	$(NULL)
+-componentdir = @datadir@/ibus/component
++componentdir = $(datadir)/ibus/component
+ 
+ EXTRA_DIST = \
+-	m17n.xml.in.in \
+-	default.xml.in \
++	m17n.xml.in \
++	$(desktop_in_in_files) \
+ 	$(NULL)
+ 
+ DISTCLEANFILES = \
+ 	m17n.xml.in \
+-	default.xml.in \
+ 	$(NULL)
+ 
+ CLEANFILES = \
+ 	m17n.xml \
+-	default.xml \
++	$(desktop_DATA)	\
++	$(desktop_in_files) \
+ 	$(NULL)
+ 
++edit = sed \
++	-e 's|@VERSION[@]|$(VERSION)|g' \
++	-e 's|@libexecdir[@]|$(libexecdir)|g' \
++	-e 's|@pkgdatadir[@]|$(pkgdatadir)|g'
++
+ m17n.xml: m17n.xml.in
+-default.xml: default.xml.in
+-
+-SUFFIXES = .xml.in .xml
+-.xml.in.xml:
+-	$(AM_V_GEN) \
+-	( \
+-		libexecdir=${libexecdir}; \
+-		pkgdatadir=${pkgdatadir}; \
+-		setupdir=${setupdir}; \
+-		s=`cat $<`; \
+-		eval "echo \"$${s}\""; \
+-	) > $@
++	$(AM_V_GEN) $(edit) $< > $@.tmp && mv $@.tmp $@
+ 
+-test: ibus-engine-m17n
+-	$(builddir)/ibus-engine-m17n
++desktop_in_in_files = ibus-setup-m17n.desktop.in.in
++desktop_in_files = $(desktop_in_in_files:.in.in=.in)
++
++$(desktop_in_files): %.desktop.in: %.desktop.in.in Makefile
++	$(AM_V_GEN) $(edit) $< > $@.tmp && mv $@.tmp $@
++
++desktopdir=$(datadir)/applications
++desktop_DATA = $(desktop_in_files:.desktop.in=.desktop)
++
++@INTLTOOL_DESKTOP_RULE@
+diff --git a/src/default.xml b/src/default.xml
+new file mode 100644
+index 0000000..ffd733a
+--- /dev/null
++++ b/src/default.xml
+@@ -0,0 +1,434 @@
++<?xml version="1.0" encoding="utf-8"?>
++<engines>
++	<!-- This file defines the default config value for each
++	     engine.  A "name" element in an "engine" element allows
++	     wildcard patterns.  "engine" elements are evaluated in
++	     first-to-last order and the latter match may override the
++	     existing default. -->
++	<!-- Default for other engines. -->
++	<engine>
++		<name>m17n:*</name>
++		<rank>0</rank>
++		<preedit-highlight>FALSE</preedit-highlight>
++		<symbol></symbol>
++	</engine>
++	<!-- Blacklist some engines -->
++	<!-- kbd engines are duplicate of xkb engines -->
++	<engine>
++		<name>m17n:*:kbd</name>
++		<rank>-1</rank>
++	</engine>
++	<!-- zh:py is superseded by ibus-pinyin etc -->
++	<engine>
++		<name>m17n:zh:py</name>
++		<rank>-1</rank>
++	</engine>
++	<!-- ja:anthy is superseded by ibus-anthy -->
++	<engine>
++		<name>m17n:ja:anthy</name>
++		<rank>-1</rank>
++	</engine>
++	<!-- ko:han2 is superseded by ibus-hangul -->
++	<engine>
++		<name>m17n:ko:han2</name>
++		<rank>-1</rank>
++	</engine>
++	<!-- ko:romaja is superseded by ibus-hangul -->
++	<engine>
++		<name>m17n:ko:romaja</name>
++		<rank>-1</rank>
++	</engine>
++	<!-- Indic engines should be selected by default:
++	     https://bugzilla.redhat.com/show_bug.cgi?id=640896 -->
++	<engine>
++		<name>m17n:as:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:bn:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:gu:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:hi:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:kn:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:ks:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:mai:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:ml:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:mr:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:ne:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:or:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:pa:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:sa:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:sd:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:si:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:ta:*</name>
++		<rank>1</rank>
++	</engine>
++	<engine>
++		<name>m17n:te:*</name>
++		<rank>1</rank>
++	</engine>
++	<!-- Assign higher rank to Indic engines which represent each
++	     language. -->
++	<engine>
++		<name>m17n:as:phonetic</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:bn:inscript</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:gu:inscript</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:hi:inscript</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:kn:kgp</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:ks:kbd</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:mai:inscript</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:ml:inscript</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:mr:inscript</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:ne:rom</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:or:inscript</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:pa:inscript</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:sa:harvard-kyoto</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:sd:inscript</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:si:wijesekera</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:ta:tamil99</name>
++		<rank>2</rank>
++	</engine>
++	<engine>
++		<name>m17n:te:inscript</name>
++		<rank>2</rank>
++	</engine>
++	<!-- Assign lower rank to Sinhala Samanala since it is a
++	     non-keyboard input method in Sinhala. -->
++	<engine>
++		<name>m17n:si:samanala</name>
++		<rank>0</rank>
++	</engine>
++	<!-- Some CJK engines use preedit. -->
++	<engine>
++		<name>m17n:zh:cangjie</name>
++		<preedit-highlight>TRUE</preedit-highlight>
++	</engine>
++	<engine>
++		<name>m17n:zh:py-b5</name>
++		<preedit-highlight>TRUE</preedit-highlight>
++	</engine>
++	<engine>
++		<name>m17n:zh:py-gb</name>
++		<preedit-highlight>TRUE</preedit-highlight>
++	</engine>
++	<engine>
++		<name>m17n:zh:py</name>
++		<preedit-highlight>TRUE</preedit-highlight>
++	</engine>
++	<engine>
++		<name>m17n:zh:quick</name>
++		<preedit-highlight>TRUE</preedit-highlight>
++	</engine>
++	<engine>
++		<name>m17n:zh:tonepy-b5</name>
++		<preedit-highlight>TRUE</preedit-highlight>
++	</engine>
++	<engine>
++		<name>m17n:zh:tonepy-gb</name>
++		<preedit-highlight>TRUE</preedit-highlight>
++	</engine>
++	<engine>
++		<name>m17n:zh:tonepy</name>
++		<preedit-highlight>TRUE</preedit-highlight>
++	</engine>
++	<engine>
++		<name>m17n:ja:anthy</name>
++		<preedit-highlight>TRUE</preedit-highlight>
++	</engine>
++	<!-- Set IME symbols. -->
++	<engine>
++		<name>m17n:as:*</name>
++		<symbol>অ</symbol>
++	</engine>
++	<engine>
++		<name>m17n:bn:*</name>
++		<symbol>বা</symbol>
++	</engine>
++	<engine>
++		<name>m17n:gu:*</name>
++		<symbol>ગુ</symbol>
++	</engine>
++	<engine>
++		<name>m17n:hi:*</name>
++		<symbol>हिं</symbol>
++	</engine>
++	<engine>
++		<name>m17n:kn:*</name>
++		<symbol>ಕ</symbol>
++	</engine>
++	<engine>
++		<name>m17n:ks:*</name>
++		<symbol>क</symbol>
++	</engine>
++	<engine>
++		<name>m17n:mai:*</name>
++		<symbol>मै</symbol>
++	</engine>
++	<engine>
++		<name>m17n:ml:*</name>
++		<symbol>മ</symbol>
++	</engine>
++	<engine>
++		<name>m17n:mr:*</name>
++		<symbol>म</symbol>
++	</engine>
++	<engine>
++		<name>m17n:ne:*</name>
++		<symbol>ने</symbol>
++	</engine>
++	<engine>
++		<name>m17n:or:*</name>
++		<symbol>ଓ</symbol>
++	</engine>
++	<engine>
++		<name>m17n:pa:*</name>
++		<symbol>ਪੰ</symbol>
++	</engine>
++	<engine>
++		<name>m17n:sa:*</name>
++		<symbol>सं</symbol>
++	</engine>
++	<engine>
++		<name>m17n:sd:*</name>
++		<symbol>सिं</symbol>
++	</engine>
++	<engine>
++		<name>m17n:si:*</name>
++		<symbol>සි</symbol>
++	</engine>
++	<engine>
++		<name>m17n:ta:*</name>
++		<symbol>த</symbol>
++	</engine>
++	<engine>
++		<name>m17n:te:*</name>
++		<symbol>తె</symbol>
++	</engine>
++	<engine>
++		<name>m17n:*:kbd</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:*:pre</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:*:post</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:am:sera</name>
++		<symbol>አ</symbol>
++	</engine>
++	<engine>
++		<name>m17n:bo:*</name>
++		<symbol>ཀ</symbol>
++	</engine>
++	<engine>
++		<name>m17n:cr:*</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:dv:*</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:eo:*</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:fa:*</name>
++		<symbol>ف</symbol>
++	</engine>
++	<engine>
++		<name>m17n:fr:*</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:ii:*</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:iu:*</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:ja:anthy</name>
++		<symbol>あ</symbol>
++	</engine>
++	<engine>
++		<name>m17n:kk:*</name>
++		<symbol>قا</symbol>
++	</engine>
++	<engine>
++		<name>m17n:km:*</name>
++		<symbol>ក</symbol>
++	</engine>
++	<engine>
++		<name>m17n:lo:*</name>
++		<symbol>ກ</symbol>
++	</engine>
++	<engine>
++		<name>m17n:nsk:*</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:oj:*</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:ps:*</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:ru:*</name>
++		<symbol>Я</symbol>
++	</engine>
++	<engine>
++		<name>m17n:sv:*</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:syrc:*</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:tai:*</name>
++		<symbol>꫞</symbol>
++	</engine>
++	<engine>
++		<name>m17n:th:*</name>
++		<symbol>ท</symbol>
++	</engine>
++	<engine>
++		<name>m17n:ur:*</name>
++		<symbol>خ</symbol>
++	</engine>
++	<engine>
++		<name>m17n:vi:han</name>
++		<symbol>越</symbol>
++	</engine>
++	<engine>
++		<name>m17n:vi:nom*</name>
++		<symbol>喃</symbol>
++	</engine>
++	<engine>
++		<name>m17n:vi:*</name>
++		<symbol>ắ</symbol>
++	</engine>
++	<engine>
++		<name>m17n:yi:*</name>
++		<symbol></symbol>
++	</engine>
++	<engine>
++		<name>m17n:zh:bopomofo</name>
++		<symbol>ㄅ</symbol>
++	</engine>
++	<engine>
++		<name>m17n:zh:cangjie</name>
++		<symbol>倉</symbol>
++	</engine>
++	<engine>
++		<name>m17n:zh:pinyin</name>
++		<symbol>PY</symbol>
++		<longname>hanyu pinyin (m17n)</longname>
++	</engine>
++	<engine>
++		<name>m17n:zh:py*</name>
++		<symbol>拼</symbol>
++	</engine>
++	<engine>
++		<name>m17n:zh:quick</name>
++		<symbol>簡</symbol>
++	</engine>
++	<engine>
++		<name>m17n:zh:tonepy*</name>
++		<symbol>调</symbol>
++	</engine>
++</engines>
+diff --git a/src/default.xml.in.in b/src/default.xml.in.in
+deleted file mode 100644
+index 9f5a01e..0000000
+--- a/src/default.xml.in.in
++++ /dev/null
+@@ -1,408 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<engines>
+-	<!-- This file defines the default config value for each
+-	     engine.  A "name" element in an "engine" element allows
+-	     wildcard patterns.  "engine" elements are evaluated in
+-	     first-to-last order and the latter match may override the
+-	     existing default. -->
+-	<!-- Default for other engines. -->
+-	<engine>
+-		<name>m17n:*</name>
+-		<rank>0</rank>
+-		<preedit-highlight>FALSE</preedit-highlight>
+-		<symbol></symbol>
+-	</engine>
+-	<!-- Indic engines should be selected by default:
+-	     https://bugzilla.redhat.com/show_bug.cgi?id=640896 -->
+-	<engine>
+-		<name>m17n:as:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:bn:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:gu:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:hi:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:kn:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:ks:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:mai:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:ml:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:mr:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:ne:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:or:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:pa:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:sa:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:sd:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:si:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:ta:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:te:*</name>
+-		<rank>1</rank>
+-	</engine>
+-	<!-- Assign higher rank to Indic engines which represent each
+-	     language. -->
+-	<engine>
+-		<name>m17n:as:phonetic</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:bn:inscript</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:gu:inscript</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:hi:inscript</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:kn:kgp</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:ks:kbd</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:mai:inscript</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:ml:inscript</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:mr:inscript</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:ne:rom</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:or:inscript</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:pa:inscript</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:sa:harvard-kyoto</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:sd:inscript</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:si:wijesekera</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:ta:tamil99</name>
+-		<rank>2</rank>
+-	</engine>
+-	<engine>
+-		<name>m17n:te:inscript</name>
+-		<rank>2</rank>
+-	</engine>
+-	<!-- Assign lower rank to Sinhala Samanala since it is a
+-	     non-keyboard input method in Sinhala. -->
+-	<engine>
+-		<name>m17n:si:samanala</name>
+-		<rank>0</rank>
+-	</engine>
+-	<!-- Some CJK engines use preedit. -->
+-	<engine>
+-		<name>m17n:zh:cangjie</name>
+-		<preedit-highlight>TRUE</preedit-highlight>
+-	</engine>
+-	<engine>
+-		<name>m17n:zh:py-b5</name>
+-		<preedit-highlight>TRUE</preedit-highlight>
+-	</engine>
+-	<engine>
+-		<name>m17n:zh:py-gb</name>
+-		<preedit-highlight>TRUE</preedit-highlight>
+-	</engine>
+-	<engine>
+-		<name>m17n:zh:py</name>
+-		<preedit-highlight>TRUE</preedit-highlight>
+-	</engine>
+-	<engine>
+-		<name>m17n:zh:quick</name>
+-		<preedit-highlight>TRUE</preedit-highlight>
+-	</engine>
+-	<engine>
+-		<name>m17n:zh:tonepy-b5</name>
+-		<preedit-highlight>TRUE</preedit-highlight>
+-	</engine>
+-	<engine>
+-		<name>m17n:zh:tonepy-gb</name>
+-		<preedit-highlight>TRUE</preedit-highlight>
+-	</engine>
+-	<engine>
+-		<name>m17n:zh:tonepy</name>
+-		<preedit-highlight>TRUE</preedit-highlight>
+-	</engine>
+-	<engine>
+-		<name>m17n:ja:anthy</name>
+-		<preedit-highlight>TRUE</preedit-highlight>
+-	</engine>
+-	<!-- Set IME symbols. -->
+-	<engine>
+-		<name>m17n:as:*</name>
+-		<symbol>অ</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:bn:*</name>
+-		<symbol>বা</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:gu:*</name>
+-		<symbol>ગુ</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:hi:*</name>
+-		<symbol>हिं</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:kn:*</name>
+-		<symbol>ಕ</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:ks:*</name>
+-		<symbol>क</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:mai:*</name>
+-		<symbol>मै</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:ml:*</name>
+-		<symbol>മ</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:mr:*</name>
+-		<symbol>म</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:ne:*</name>
+-		<symbol>ने</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:or:*</name>
+-		<symbol>ଓ</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:pa:*</name>
+-		<symbol>ਪੰ</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:sa:*</name>
+-		<symbol>सं</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:sd:*</name>
+-		<symbol>सिं</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:si:*</name>
+-		<symbol>සි</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:ta:*</name>
+-		<symbol>த</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:te:*</name>
+-		<symbol>తె</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:*:kbd</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:*:pre</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:*:post</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:am:sera</name>
+-		<symbol>አ</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:bo:*</name>
+-		<symbol>ཀ</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:cr:*</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:dv:*</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:eo:*</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:fa:*</name>
+-		<symbol>ف</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:fr:*</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:ii:*</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:iu:*</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:ja:anthy</name>
+-		<symbol>あ</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:kk:*</name>
+-		<symbol>قا</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:km:*</name>
+-		<symbol>ក</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:lo:*</name>
+-		<symbol>ກ</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:nsk:*</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:oj:*</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:ps:*</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:ru:*</name>
+-		<symbol>Я</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:sv:*</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:syrc:*</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:tai:*</name>
+-		<symbol>꫞</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:th:*</name>
+-		<symbol>ท</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:ur:*</name>
+-		<symbol>خ</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:vi:han</name>
+-		<symbol>越</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:vi:nom*</name>
+-		<symbol>喃</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:vi:*</name>
+-		<symbol>Ắ</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:yi:*</name>
+-		<symbol></symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:zh:bopomofo</name>
+-		<symbol>ㄅ</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:zh:cangjie</name>
+-		<symbol>倉</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:zh:pinyin</name>
+-		<symbol>PY</symbol>
+-		<longname>hanyu pinyin (m17n)</longname>
+-	</engine>
+-	<engine>
+-		<name>m17n:zh:py*</name>
+-		<symbol>拼</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:zh:quick</name>
+-		<symbol>簡</symbol>
+-	</engine>
+-	<engine>
+-		<name>m17n:zh:tonepy*</name>
+-		<symbol>调</symbol>
+-	</engine>
+-</engines>
+diff --git a/src/engine.c b/src/engine.c
+index bd7ea0f..bcc1a71 100644
+--- a/src/engine.c
++++ b/src/engine.c
+@@ -23,6 +23,7 @@ struct _IBusM17NEngine {
+     IBusProperty    *setup_prop;
+ #endif  /* HAVE_SETUP */
+     IBusPropList    *prop_list;
++    IBusKeymap      *us_keymap;
+ };
+ 
+ struct _IBusM17NEngineClass {
+@@ -35,6 +36,7 @@ struct _IBusM17NEngineClass {
+     gint preedit_underline;
+     IBusPreeditFocusMode preedit_focus_mode;
+     gint lookup_table_orientation;
++    gboolean use_us_layout;
+ 
+     MInputMethod *im;
+ };
+@@ -64,14 +66,6 @@ static void ibus_m17n_engine_focus_out      (IBusEngine             *engine);
+ static void ibus_m17n_engine_reset          (IBusEngine             *engine);
+ static void ibus_m17n_engine_enable         (IBusEngine             *engine);
+ static void ibus_m17n_engine_disable        (IBusEngine             *engine);
+-static void ibus_engine_set_cursor_location (IBusEngine             *engine,
+-                                             gint                    x,
+-                                             gint                    y,
+-                                             gint                    w,
+-                                             gint                    h);
+-static void ibus_m17n_engine_set_capabilities
+-                                            (IBusEngine             *engine,
+-                                             guint                   caps);
+ static void ibus_m17n_engine_page_up        (IBusEngine             *engine);
+ static void ibus_m17n_engine_page_down      (IBusEngine             *engine);
+ static void ibus_m17n_engine_cursor_up      (IBusEngine             *engine);
+@@ -80,12 +74,6 @@ static void ibus_m17n_engine_property_activate
+                                             (IBusEngine             *engine,
+                                              const gchar            *prop_name,
+                                              guint                   prop_state);
+-static void ibus_m17n_engine_property_show
+-                                            (IBusEngine             *engine,
+-                                             const gchar            *prop_name);
+-static void ibus_m17n_engine_property_hide
+-                                            (IBusEngine             *engine,
+-                                             const gchar            *prop_name);
+ 
+ static void ibus_m17n_engine_commit_string
+                                             (IBusM17NEngine         *m17n,
+@@ -263,6 +251,7 @@ ibus_m17n_engine_class_init (IBusM17NEngineClass *klass)
+         IBUS_ENGINE_PREEDIT_COMMIT :
+         IBUS_ENGINE_PREEDIT_CLEAR;
+     klass->lookup_table_orientation = IBUS_ORIENTATION_SYSTEM;
++    klass->use_us_layout = FALSE;
+ 
+     ibus_m17n_engine_config_free (engine_config);
+ 
+@@ -304,6 +293,14 @@ ibus_m17n_engine_class_init (IBusM17NEngineClass *klass)
+             klass->lookup_table_orientation = g_variant_get_int32 (value);
+             g_variant_unref (value);
+         }
++
++        value = g_variant_lookup_value (values,
++                                        "use_us_layout",
++                                        G_VARIANT_TYPE_BOOLEAN);
++        if (value != NULL) {
++            klass->use_us_layout = g_variant_get_boolean (value);
++            g_variant_unref (value);
++        }
+         g_variant_unref (values);
+     }
+ 
+@@ -340,6 +337,8 @@ ibus_m17n_config_value_changed (IBusConfig          *config,
+             klass->preedit_underline = g_variant_get_int32 (value);
+         } else if (g_strcmp0 (name, "lookup_table_orientation") == 0) {
+             klass->lookup_table_orientation = g_variant_get_int32 (value);
++        } else if (g_strcmp0 (name, "use_us_layout") == 0) {
++            klass->use_us_layout = g_variant_get_boolean (value);
+         }
+     }
+ }
+@@ -384,6 +383,7 @@ ibus_m17n_engine_init (IBusM17NEngine *m17n)
+     m17n->table = ibus_lookup_table_new (9, 0, TRUE, TRUE);
+     g_object_ref_sink (m17n->table);
+     m17n->context = NULL;
++    m17n->us_keymap = ibus_keymap_get ("us");
+ }
+ 
+ static GObject*
+@@ -476,6 +476,11 @@ ibus_m17n_engine_destroy (IBusM17NEngine *m17n)
+         m17n->context = NULL;
+     }
+ 
++    if (m17n->us_keymap) {
++        g_object_unref (m17n->us_keymap);
++        m17n->us_keymap = NULL;
++    }
++
+     IBUS_OBJECT_CLASS (parent_class)->destroy ((IBusObject *)m17n);
+ }
+ 
+@@ -531,28 +536,25 @@ ibus_m17n_engine_commit_string (IBusM17NEngine *m17n,
+    Since IBus engines are supposed to be cross-platform, the code
+    should go into IBus core, instead of ibus-m17n. */
+ static MSymbol
+-ibus_m17n_key_event_to_symbol (guint keycode,
+-                               guint keyval,
+-                               guint modifiers)
++ibus_m17n_key_event_to_symbol (IBusM17NEngine *m17n,
++                               guint           keycode,
++                               guint           keyval,
++                               guint           modifiers)
+ {
+     GString *keysym;
+     MSymbol mkeysym = Mnil;
+     guint mask = 0;
+-    IBusKeymap *keymap;
+ 
+     if (keyval >= IBUS_Shift_L && keyval <= IBUS_Hyper_R) {
+         return Mnil;
+     }
+ 
+-    /* Here, keyval is already translated by IBUS_MOD5_MASK.  Obtain
+-       the untranslated keyval from the underlying keymap and
+-       represent the translated keyval as the form "G-<untranslated
+-       keyval>", which m17n-lib accepts. */
++    /* If keyval is already translated by IBUS_MOD5_MASK.  Try to
++       obtain the untranslated keyval from the US keymap. */
+     if (modifiers & IBUS_MOD5_MASK) {
+-        keymap = ibus_keymap_get ("us");
+-        keyval = ibus_keymap_lookup_keysym (keymap, keycode,
++        keyval = ibus_keymap_lookup_keysym (m17n->us_keymap,
++                                            keycode,
+                                             modifiers & ~IBUS_MOD5_MASK);
+-        g_object_unref (keymap);
+     }
+ 
+     keysym = g_string_new ("");
+@@ -656,15 +658,38 @@ ibus_m17n_engine_process_key_event (IBusEngine     *engine,
+                                     guint           modifiers)
+ {
+     IBusM17NEngine *m17n = (IBusM17NEngine *) engine;
++    IBusM17NEngineClass *klass =
++        (IBusM17NEngineClass *) G_OBJECT_GET_CLASS (m17n);
++    guint original_keyval = keyval;
+ 
+     if (modifiers & IBUS_RELEASE_MASK)
+         return FALSE;
+-    MSymbol m17n_key = ibus_m17n_key_event_to_symbol (keycode, keyval, modifiers);
+ 
+-    if (m17n_key == Mnil)
+-        return FALSE;
++    if (klass->use_us_layout) {
++        keyval = ibus_keymap_lookup_keysym (m17n->us_keymap,
++                                            keycode,
++                                            modifiers);
++    }
+ 
+-    return ibus_m17n_engine_process_key (m17n, m17n_key);
++    MSymbol m17n_key = ibus_m17n_key_event_to_symbol (m17n,
++                                                      keycode,
++                                                      keyval,
++                                                      modifiers);
++    if (m17n_key != Mnil && ibus_m17n_engine_process_key (m17n, m17n_key)) {
++        return TRUE;
++    }
++
++    /* If keyval is translated in US layout, send the new keyval and
++       notify that the event is handled. */
++    if (keyval != original_keyval && 0x20 <= keyval && keyval < 0x7F) {
++        gchar buf[2];
++        buf[0] = keyval;
++        buf[1] = '\0';
++        ibus_m17n_engine_commit_string (m17n, buf);
++        return TRUE;
++    }
++
++    return FALSE;
+ }
+ 
+ static void
+@@ -704,8 +729,6 @@ ibus_m17n_engine_reset (IBusEngine *engine)
+ static void
+ ibus_m17n_engine_enable (IBusEngine *engine)
+ {
+-    IBusM17NEngine *m17n = (IBusM17NEngine *) engine;
+-
+     parent_class->enable (engine);
+ 
+     /* Issue a dummy ibus_engine_get_surrounding_text() call to tell
+@@ -716,8 +739,6 @@ ibus_m17n_engine_enable (IBusEngine *engine)
+ static void
+ ibus_m17n_engine_disable (IBusEngine *engine)
+ {
+-    IBusM17NEngine *m17n = (IBusM17NEngine *) engine;
+-
+     ibus_m17n_engine_focus_out (engine);
+     parent_class->disable (engine);
+ }
+@@ -951,7 +972,9 @@ ibus_m17n_engine_callback (MInputContext *context,
+                                           &anchor_pos);
+         nchars = ibus_text_get_length (text);
+         nbytes = g_utf8_offset_to_pointer (text->text, nchars) - text->text;
+-        mt = mconv_decode_buffer (Mcoding_utf_8, text->text, nbytes);
++        mt = mconv_decode_buffer (Mcoding_utf_8,
++                                  (const unsigned char *) text->text,
++                                  nbytes);
+         g_object_unref (text);
+ 
+         len = (long) mplist_value (m17n->context->plist);
+diff --git a/src/ibus-m17n-preferences.ui b/src/ibus-m17n-preferences.ui
+index a46ab49..e85fb15 100644
+--- a/src/ibus-m17n-preferences.ui
++++ b/src/ibus-m17n-preferences.ui
+@@ -1,8 +1,8 @@
+-<?xml version="1.0"?>
++<?xml version="1.0" encoding="UTF-8"?>
+ <interface>
+   <requires lib="gtk+" version="2.14"/>
+   <!-- interface-naming-policy project-wide -->
+-  <object class="GtkListStore" id="liststore_underline">
++  <object class="GtkListStore" id="liststore_orientation">
+     <columns>
+       <!-- column-name name -->
+       <column type="gchararray"/>
+@@ -11,24 +11,20 @@
+     </columns>
+     <data>
+       <row>
+-        <col id="0" translatable="yes">Single</col>
+-        <col id="1">1</col>
+-      </row>
+-      <row>
+-        <col id="0" translatable="yes">Double</col>
++        <col id="0" translatable="yes">System</col>
+         <col id="1">2</col>
+       </row>
+       <row>
+-        <col id="0" translatable="yes">Low</col>
+-        <col id="1">3</col>
++        <col id="0" translatable="yes">Vertical</col>
++        <col id="1">1</col>
+       </row>
+       <row>
+-        <col id="0" translatable="yes">None</col>
++        <col id="0" translatable="yes">Horizontal</col>
+         <col id="1">0</col>
+       </row>
+     </data>
+   </object>
+-  <object class="GtkListStore" id="liststore_orientation">
++  <object class="GtkListStore" id="liststore_underline">
+     <columns>
+       <!-- column-name name -->
+       <column type="gchararray"/>
+@@ -37,32 +33,67 @@
+     </columns>
+     <data>
+       <row>
+-        <col id="0" translatable="yes">System</col>
++        <col id="0" translatable="yes">Single</col>
++        <col id="1">1</col>
++      </row>
++      <row>
++        <col id="0" translatable="yes">Double</col>
+         <col id="1">2</col>
+       </row>
+       <row>
+-        <col id="0" translatable="yes">Vertical</col>
+-        <col id="1">1</col>
++        <col id="0" translatable="yes">Low</col>
++        <col id="1">3</col>
+       </row>
+       <row>
+-        <col id="0" translatable="yes">Horizontal</col>
++        <col id="0" translatable="yes">None</col>
+         <col id="1">0</col>
+       </row>
+     </data>
+   </object>
+   <object class="GtkDialog" id="dialog">
+     <property name="width_request">400</property>
++    <property name="can_focus">False</property>
+     <property name="border_width">5</property>
+     <property name="title" translatable="yes">Preferences</property>
+     <property name="window_position">center-always</property>
+     <property name="icon_name">gtk-preferences</property>
+     <property name="type_hint">normal</property>
+-    <property name="has_separator">False</property>
+     <child internal-child="vbox">
+       <object class="GtkVBox" id="dialog-vbox1">
+         <property name="visible">True</property>
+-        <property name="orientation">vertical</property>
++        <property name="can_focus">False</property>
+         <property name="spacing">2</property>
++        <child internal-child="action_area">
++          <object class="GtkHButtonBox" id="dialog-action_area1">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="layout_style">end</property>
++            <child>
++              <object class="GtkButton" id="buttonClose">
++                <property name="label">gtk-close</property>
++                <property name="visible">True</property>
++                <property name="can_focus">True</property>
++                <property name="has_focus">True</property>
++                <property name="is_focus">True</property>
++                <property name="can_default">True</property>
++                <property name="has_default">True</property>
++                <property name="receives_default">True</property>
++                <property name="use_stock">True</property>
++              </object>
++              <packing>
++                <property name="expand">False</property>
++                <property name="fill">False</property>
++                <property name="position">0</property>
++              </packing>
++            </child>
++          </object>
++          <packing>
++            <property name="expand">False</property>
++            <property name="fill">True</property>
++            <property name="pack_type">end</property>
++            <property name="position">0</property>
++          </packing>
++        </child>
+         <child>
+           <object class="GtkNotebook" id="pages">
+             <property name="visible">True</property>
+@@ -71,6 +102,7 @@
+             <child>
+               <object class="GtkAlignment" id="pageGeneral">
+                 <property name="visible">True</property>
++                <property name="can_focus">False</property>
+                 <property name="top_padding">12</property>
+                 <property name="bottom_padding">12</property>
+                 <property name="left_padding">12</property>
+@@ -78,20 +110,23 @@
+                 <child>
+                   <object class="GtkVBox" id="vbox1">
+                     <property name="visible">True</property>
+-                    <property name="orientation">vertical</property>
++                    <property name="can_focus">False</property>
+                     <child>
+                       <object class="GtkFrame" id="frame1">
+                         <property name="visible">True</property>
++                        <property name="can_focus">False</property>
+                         <property name="label_xalign">0</property>
+                         <property name="shadow_type">none</property>
+                         <child>
+                           <object class="GtkAlignment" id="alignment1">
+                             <property name="visible">True</property>
++                            <property name="can_focus">False</property>
+                             <property name="top_padding">6</property>
+                             <property name="left_padding">12</property>
+                             <child>
+                               <object class="GtkTable" id="table1">
+                                 <property name="visible">True</property>
++                                <property name="can_focus">False</property>
+                                 <property name="n_rows">3</property>
+                                 <property name="n_columns">2</property>
+                                 <child>
+@@ -123,6 +158,7 @@
+                                 <child>
+                                   <object class="GtkComboBox" id="combobox_underline">
+                                     <property name="visible">True</property>
++                                    <property name="can_focus">False</property>
+                                     <property name="model">liststore_underline</property>
+                                   </object>
+                                   <packing>
+@@ -157,6 +193,7 @@
+                                 <child>
+                                   <object class="GtkLabel" id="label3">
+                                     <property name="visible">True</property>
++                                    <property name="can_focus">False</property>
+                                     <property name="label" translatable="yes">Underline:</property>
+                                   </object>
+                                   <packing>
+@@ -171,31 +208,39 @@
+                         <child type="label">
+                           <object class="GtkLabel" id="label2">
+                             <property name="visible">True</property>
++                            <property name="can_focus">False</property>
+                             <property name="label" translatable="yes">&lt;b&gt;Pre-edit Appearance&lt;/b&gt;</property>
+                             <property name="use_markup">True</property>
+                           </object>
+                         </child>
+                       </object>
+                       <packing>
++                        <property name="expand">True</property>
++                        <property name="fill">True</property>
+                         <property name="position">0</property>
+                       </packing>
+                     </child>
+                     <child>
+                       <object class="GtkFrame" id="frame2">
+                         <property name="visible">True</property>
++                        <property name="can_focus">False</property>
+                         <property name="label_xalign">0</property>
+                         <property name="shadow_type">none</property>
+                         <child>
+                           <object class="GtkAlignment" id="alignment2">
+                             <property name="visible">True</property>
++                            <property name="can_focus">False</property>
+                             <property name="left_padding">12</property>
+                             <child>
+                               <object class="GtkTable" id="table2">
+                                 <property name="visible">True</property>
++                                <property name="can_focus">False</property>
++                                <property name="n_rows">2</property>
+                                 <property name="n_columns">2</property>
+                                 <child>
+                                   <object class="GtkLabel" id="label9">
+                                     <property name="visible">True</property>
++                                    <property name="can_focus">False</property>
+                                     <property name="yalign">0.46000000834465027</property>
+                                     <property name="label" translatable="yes">Lookup Table Orientation: </property>
+                                   </object>
+@@ -203,6 +248,7 @@
+                                 <child>
+                                   <object class="GtkComboBox" id="combobox_orientation">
+                                     <property name="visible">True</property>
++                                    <property name="can_focus">False</property>
+                                     <property name="model">liststore_orientation</property>
+                                   </object>
+                                   <packing>
+@@ -210,6 +256,20 @@
+                                     <property name="right_attach">2</property>
+                                   </packing>
+                                 </child>
++                                <child>
++                                  <object class="GtkCheckButton" id="checkbutton_use_us_layout">
++                                    <property name="label" translatable="yes">Use US keyboard layout</property>
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">True</property>
++                                    <property name="receives_default">False</property>
++                                    <property name="draw_indicator">True</property>
++                                  </object>
++                                  <packing>
++                                    <property name="right_attach">2</property>
++                                    <property name="top_attach">1</property>
++                                    <property name="bottom_attach">2</property>
++                                  </packing>
++                                </child>
+                               </object>
+                             </child>
+                           </object>
+@@ -217,12 +277,15 @@
+                         <child type="label">
+                           <object class="GtkLabel" id="label8">
+                             <property name="visible">True</property>
++                            <property name="can_focus">False</property>
+                             <property name="label" translatable="yes">&lt;b&gt;Other&lt;/b&gt;</property>
+                             <property name="use_markup">True</property>
+                           </object>
+                         </child>
+                       </object>
+                       <packing>
++                        <property name="expand">True</property>
++                        <property name="fill">True</property>
+                         <property name="position">1</property>
+                       </packing>
+                     </child>
+@@ -233,6 +296,7 @@
+             <child type="tab">
+               <object class="GtkLabel" id="label6">
+                 <property name="visible">True</property>
++                <property name="can_focus">False</property>
+                 <property name="label" translatable="yes">General</property>
+               </object>
+               <packing>
+@@ -242,6 +306,7 @@
+             <child>
+               <object class="GtkAlignment" id="pageAdvanced">
+                 <property name="visible">True</property>
++                <property name="can_focus">False</property>
+                 <property name="top_padding">12</property>
+                 <property name="bottom_padding">12</property>
+                 <property name="left_padding">12</property>
+@@ -249,11 +314,13 @@
+                 <child>
+                   <object class="GtkFrame" id="frame4">
+                     <property name="visible">True</property>
++                    <property name="can_focus">False</property>
+                     <property name="label_xalign">0</property>
+                     <property name="shadow_type">none</property>
+                     <child>
+                       <object class="GtkAlignment" id="alignment7">
+                         <property name="visible">True</property>
++                        <property name="can_focus">False</property>
+                         <property name="top_padding">6</property>
+                         <property name="left_padding">12</property>
+                         <child>
+@@ -277,6 +344,7 @@
+                     <child type="label">
+                       <object class="GtkLabel" id="label7">
+                         <property name="visible">True</property>
++                        <property name="can_focus">False</property>
+                         <property name="label" translatable="yes">&lt;b&gt;m17n-lib Configuration&lt;/b&gt;</property>
+                         <property name="use_markup">True</property>
+                       </object>
+@@ -291,6 +359,7 @@
+             <child type="tab">
+               <object class="GtkLabel" id="label1">
+                 <property name="visible">True</property>
++                <property name="can_focus">False</property>
+                 <property name="label" translatable="yes">Advanced</property>
+               </object>
+               <packing>
+@@ -300,38 +369,11 @@
+             </child>
+           </object>
+           <packing>
++            <property name="expand">True</property>
++            <property name="fill">True</property>
+             <property name="position">1</property>
+           </packing>
+         </child>
+-        <child internal-child="action_area">
+-          <object class="GtkHButtonBox" id="dialog-action_area1">
+-            <property name="visible">True</property>
+-            <property name="layout_style">end</property>
+-            <child>
+-              <object class="GtkButton" id="buttonClose">
+-                <property name="label">gtk-close</property>
+-                <property name="visible">True</property>
+-                <property name="can_focus">True</property>
+-                <property name="has_focus">True</property>
+-                <property name="is_focus">True</property>
+-                <property name="can_default">True</property>
+-                <property name="has_default">True</property>
+-                <property name="receives_default">True</property>
+-                <property name="use_stock">True</property>
+-              </object>
+-              <packing>
+-                <property name="expand">False</property>
+-                <property name="fill">False</property>
+-                <property name="position">0</property>
+-              </packing>
+-            </child>
+-          </object>
+-          <packing>
+-            <property name="expand">False</property>
+-            <property name="pack_type">end</property>
+-            <property name="position">0</property>
+-          </packing>
+-        </child>
+       </object>
+     </child>
+     <action-widgets>
+diff --git a/src/ibus-setup-m17n.desktop.in.in b/src/ibus-setup-m17n.desktop.in.in
+new file mode 100644
+index 0000000..a380cb3
+--- /dev/null
++++ b/src/ibus-setup-m17n.desktop.in.in
+@@ -0,0 +1,7 @@
++[Desktop Entry]
++_Name=IBus M17N Setup
++_Comment=Set up IBus M17N engine
++Exec=@libexecdir@/ibus-setup-m17n
++NoDisplay=true
++Type=Application
++StartupNotify=true
+diff --git a/src/m17n.xml.in b/src/m17n.xml.in
+new file mode 100644
+index 0000000..fc215ab
+--- /dev/null
++++ b/src/m17n.xml.in
+@@ -0,0 +1,18 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- filename: m17n.xml -->
++<component>
++	<name>org.freedesktop.IBus.M17N</name>
++	<description>M17N Component</description>
++	<exec>@libexecdir@/ibus-engine-m17n --ibus</exec>
++	<version>@VERSION@</version>
++	<author>Peng Huang &lt;shawn.p.huang@gmail.com&gt;</author>
++	<license>GPL</license>
++	<homepage>http://code.google.com/p/ibus</homepage>
++	<textdomain>ibus-m17n</textdomain>
++	<observed-paths>
++		<path>/usr/share/m17n/</path>
++		<path>@pkgdatadir@/default.xml</path>
++		<path>~/.m17n.d/</path>
++	</observed-paths>
++	<engines exec="@libexecdir@/ibus-engine-m17n --xml" />
++</component>
+diff --git a/src/m17n.xml.in.in b/src/m17n.xml.in.in
+deleted file mode 100644
+index 2f18ad5..0000000
+--- a/src/m17n.xml.in.in
++++ /dev/null
+@@ -1,18 +0,0 @@
+-<?xml version=\"1.0\" encoding=\"utf-8\"?>
+-<!-- filename: m17n.xml -->
+-<component>
+-	<name>org.freedesktop.IBus.M17N</name>
+-	<description>M17N Component</description>
+-	<exec>${libexecdir}/ibus-engine-m17n --ibus</exec>
+-	<version>@VERSION@</version>
+-	<author>Peng Huang &lt;shawn.p.huang@gmail.com&gt;</author>
+-	<license>GPL</license>
+-	<homepage>http://code.google.com/p/ibus</homepage>
+-	<textdomain>ibus-m17n</textdomain>
+-	<observed-paths>
+-		<path>/usr/share/m17n/</path>
+-		<path>${setupdir}/default.xml</path>
+-		<path>~/.m17n.d/</path>
+-	</observed-paths>
+-	<engines exec=\"${libexecdir}/ibus-engine-m17n --xml\" />
+-</component>
+diff --git a/src/m17nutil.c b/src/m17nutil.c
+index 51026b2..d82b855 100644
+--- a/src/m17nutil.c
++++ b/src/m17nutil.c
+@@ -11,7 +11,7 @@
+ 
+ static MConverter *utf8_converter = NULL;
+ 
+-#define DEFAULT_XML (SETUPDIR "/default.xml")
++#define DEFAULT_XML (PKGDATADIR "/default.xml")
+ 
+ typedef enum {
+     ENGINE_CONFIG_RANK_MASK = 1 << 0,
+@@ -53,7 +53,9 @@ ibus_m17n_mtext_to_utf8 (MText *text)
+     bufsize = (mtext_len (text) + 1) * 6;
+     buf = (gchar *) g_malloc (bufsize);
+ 
+-    mconv_rebind_buffer (utf8_converter, buf, bufsize);
++    mconv_rebind_buffer (utf8_converter,
++                         (const unsigned char *) buf,
++                         bufsize);
+     mconv_encode (utf8_converter, text);
+ 
+     buf [utf8_converter->nbytes] = 0;
+@@ -76,7 +78,9 @@ ibus_m17n_mtext_to_ucs4 (MText *text, glong *nchars)
+     bufsize = (mtext_len (text) + 1) * 6;
+     buf = (gchar *) g_malloc (bufsize);
+ 
+-    mconv_rebind_buffer (utf8_converter, buf, bufsize);
++    mconv_rebind_buffer (utf8_converter,
++                         (const unsigned char *) buf,
++                         bufsize);
+     if (mconv_encode (utf8_converter, text) < 0) {
+         g_free (buf);
+         return NULL;
+@@ -133,7 +137,7 @@ ibus_m17n_engine_new (MSymbol  lang,
+                                            "language",    msymbol_name (lang),
+                                            "license",     "GPL",
+                                            "icon",        engine_icon ? engine_icon : "",
+-                                           "layout",      "us",
++                                           "layout",      "default",
+                                            "rank",        config->rank,
+                                            "symbol",      config->symbol ? config->symbol : "",
+                                            "setup",       engine_setup,
+@@ -202,17 +206,12 @@ ibus_m17n_list_engines (void)
+             if (l) {
+                 /* check candidates encoding */
+                 MPlist *sl;
+-                MSymbol varname;
+-                MText *vardesc;
+-                MSymbol varunknown;
+                 MSymbol varcharset;
+ 
+                 sl = mplist_value (l);
+-                varname  = mplist_value (sl);
++                /* L = (VAR-NAME DESCRIPTION 'nil' VALUE) */
+                 sl = mplist_next (sl);
+-                vardesc = mplist_value (sl);
+                 sl = mplist_next (sl);
+-                varunknown = mplist_value (sl);
+                 sl = mplist_next (sl);
+                 varcharset = mplist_value (sl);
+ 
+@@ -336,17 +335,24 @@ ibus_m17n_get_component (void)
+     GList *engines, *p;
+     IBusComponent *component;
+     XMLNode *node;
++    const gchar *pkgdatadir;
++    gchar *default_xml;
+ 
+     component = ibus_component_new ("org.freedesktop.IBus.M17n",
+                                     N_("M17N"),
+-                                    "0.1.0",
++                                    PACKAGE_VERSION,
+                                     "GPL",
+                                     "Peng Huang <shawn.p.huang@gmail.com>",
+                                     "http://code.google.com/p/ibus/",
+                                     "",
+-                                    "ibus-m17n");
++                                    PACKAGE_NAME);
+ 
+-    node = ibus_xml_parse_file (DEFAULT_XML);
++    pkgdatadir = g_getenv ("IBUS_M17N_PKGDATADIR");
++    if (pkgdatadir == NULL)
++        pkgdatadir = PKGDATADIR;
++    default_xml = g_build_filename (pkgdatadir, "default.xml", NULL);
++
++    node = ibus_xml_parse_file (default_xml);
+     if (node && g_strcmp0 (node->name, "engines") == 0) {
+         for (p = node->sub_nodes; p != NULL; p = p->next) {
+             XMLNode *sub_node = p->data;
+@@ -367,10 +373,12 @@ ibus_m17n_get_component (void)
+         }
+         config_list = g_slist_reverse (config_list);
+     } else
+-        g_warning ("failed to parse %s", DEFAULT_XML);
++        g_warning ("failed to parse %s", default_xml);
+     if (node)
+         ibus_xml_free (node);
+ 
++    g_free (default_xml);
++
+     engines = ibus_m17n_list_engines ();
+ 
+     for (p = engines; p != NULL; p = p->next)
+diff --git a/src/setup.c b/src/setup.c
+index cc5cb09..513fabf 100644
+--- a/src/setup.c
++++ b/src/setup.c
+@@ -25,6 +25,7 @@ struct _SetupDialog {
+     GtkWidget *colorbutton_foreground;
+     GtkWidget *checkbutton_background;
+     GtkWidget *colorbutton_background;
++    GtkWidget *checkbutton_use_us_layout;
+     GtkWidget *treeview;
+     GtkListStore *store;
+ 
+@@ -73,7 +74,9 @@ parse_m17n_value (MPlist *plist, gchar *text)
+     if (mplist_key (plist) == Mtext) {
+         MText *mtext;
+ 
+-        mtext = mtext_from_data (text, strlen (text), MTEXT_FORMAT_UTF_8);
++        mtext = mconv_decode_buffer (Mcoding_utf_8,
++                                     (const unsigned char *) text,
++                                     strlen (text));
+         value = mplist ();
+         mplist_add (value, Mtext, mtext);
+         return value;
+@@ -288,6 +291,25 @@ load_choice (GVariant    *values,
+ }
+ 
+ static void
++load_toggle (GVariant        *values,
++             GtkToggleButton *togglebutton,
++             const gchar     *name,
++             gboolean         defval)
++{
++    GVariant *value;
++    gboolean bvalue;
++
++    bvalue = defval;
++    value = g_variant_lookup_value (values, name, G_VARIANT_TYPE_BOOLEAN);
++    if (value != NULL) {
++        bvalue = g_variant_get_boolean (value);
++        g_variant_unref (value);
++    }
++
++    gtk_toggle_button_set_active (togglebutton, bvalue);
++}
++
++static void
+ setup_dialog_load_config (SetupDialog *dialog)
+ {
+     GVariant *values;
+@@ -336,6 +358,12 @@ setup_dialog_load_config (SetupDialog *dialog)
+                  "lookup_table_orientation",
+                  IBUS_ORIENTATION_SYSTEM);
+ 
++    /* Use US keyboard layout */
++    load_toggle (values,
++                 GTK_TOGGLE_BUTTON (dialog->checkbutton_use_us_layout),
++                 "use_us_layout",
++                 FALSE);
++
+     /* Advanced -> m17n-lib configuration */
+     dialog->store = gtk_list_store_new (NUM_COLS,
+                                         G_TYPE_STRING,
+@@ -372,10 +400,10 @@ setup_dialog_load_config (SetupDialog *dialog)
+ static gchar *
+ _gdk_color_to_string (GdkColor *color)
+ {
+-    g_strdup_printf ("#%02X%02X%02X",
+-                     (color->red & 0xFF00) >> 8,
+-                     (color->green & 0xFF00) >> 8,
+-                     (color->blue & 0xFF00) >> 8);
++    return g_strdup_printf ("#%02X%02X%02X",
++                            (color->red & 0xFF00) >> 8,
++                            (color->green & 0xFF00) >> 8,
++                            (color->blue & 0xFF00) >> 8);
+ }
+ 
+ static void
+@@ -418,6 +446,20 @@ save_choice (SetupDialog *dialog,
+     ibus_config_set_value (dialog->config, dialog->section, name, value);
+ }
+ 
++static void
++save_toggle (SetupDialog     *dialog,
++             GtkToggleButton *togglebutton,
++             const gchar     *name)
++{
++    GVariant *value;
++
++    value = g_variant_new_boolean (gtk_toggle_button_get_active (togglebutton));
++    ibus_config_set_value (dialog->config,
++                           dialog->section,
++                           name,
++                           value);
++}
++
+ static gboolean
+ save_m17n_options (SetupDialog *dialog)
+ {
+@@ -428,7 +470,7 @@ save_m17n_options (SetupDialog *dialog)
+     gboolean retval = TRUE;
+ 
+     if (!gtk_tree_model_get_iter_first (model, &iter))
+-        return;
++        return FALSE;
+ 
+     do {
+         gtk_tree_model_get (model, &iter,
+@@ -499,6 +541,9 @@ setup_dialog_save_config (SetupDialog *dialog)
+     save_choice (dialog,
+                  GTK_COMBO_BOX (dialog->combobox_orientation),
+                  "lookup_table_orientation");
++    save_toggle (dialog,
++                 GTK_TOGGLE_BUTTON (dialog->checkbutton_use_us_layout),
++                 "use_us_layout");
+     save_m17n_options (dialog);
+ }
+ 
+@@ -525,7 +570,7 @@ setup_dialog_new (IBusConfig *config,
+ 
+     error = NULL;
+     if (gtk_builder_add_from_file (builder,
+-                                   SETUPDIR "/ibus-m17n-preferences.ui",
++                                   PKGDATADIR "setup/ibus-m17n-preferences.ui",
+                                    &error) == 0) {
+         g_warning ("can't read ibus-m17n-preferences.ui: %s",
+                    error->message);
+@@ -547,6 +592,8 @@ setup_dialog_new (IBusConfig *config,
+     dialog->combobox_underline = GTK_WIDGET (object);
+     object = gtk_builder_get_object (builder, "combobox_orientation");
+     dialog->combobox_orientation = GTK_WIDGET (object);
++    object = gtk_builder_get_object (builder, "checkbutton_use_us_layout");
++    dialog->checkbutton_use_us_layout = GTK_WIDGET (object);
+     object = gtk_builder_get_object (builder, "treeview_mim_config");
+     dialog->treeview = GTK_WIDGET (object);
+ 
+@@ -567,9 +614,8 @@ start (const gchar *engine_name)
+ {
+     IBusBus *bus;
+     IBusConfig *config;
+-    gchar **strv, *section;
++    gchar **strv;
+     SetupDialog *dialog;
+-    GObject *object;
+ 
+     ibus_init ();
+     ibus_m17n_init_common ();
+@@ -610,6 +656,11 @@ main (gint argc, gchar **argv)
+     g_option_context_free (context);
+ 
+     gtk_init (&argc, &argv);
++
++    if (!opt_name) {
++        opt_name = (gchar *) g_getenv ("IBUS_ENGINE_NAME");
++    }
++
+     if (!opt_name) {
+         fprintf (stderr, "can't determine IBus engine name; use --name\n");
+         exit (1);

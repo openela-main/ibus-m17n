@@ -1,0 +1,29 @@
+From e5c742c56abaadaa5d5a018c0d9004bf2d0a100c Mon Sep 17 00:00:00 2001
+From: Mike FABIAN <mfabian@redhat.com>
+Date: Mon, 12 Aug 2013 18:51:59 +0200
+Subject: [PATCH] engine: fix preedit background colour and underlining
+
+BUG=rhbz#995842
+
+Review URL: https://codereview.appspot.com/12688049
+Patch from Mike FABIAN <mfabian@redhat.com>.
+---
+ src/engine.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/engine.c b/src/engine.c
+index bcc1a71..ca70464 100644
+--- a/src/engine.c
++++ b/src/engine.c
+@@ -282,7 +282,7 @@ ibus_m17n_engine_class_init (IBusM17NEngineClass *klass)
+                                         "preedit_underline",
+                                         G_VARIANT_TYPE_INT32);
+         if (value != NULL) {
+-            klass->preedit_background = g_variant_get_int32 (value);
++            klass->preedit_underline = g_variant_get_int32 (value);
+             g_variant_unref (value);
+         }
+ 
+-- 
+1.8.3.1
+
