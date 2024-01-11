@@ -1,0 +1,24 @@
+From 1a497768dfb15c18865154183296087ec07d6a95 Mon Sep 17 00:00:00 2001
+From: Daiki Ueno <ueno@unixuser.org>
+Date: Tue, 16 Sep 2014 11:28:04 +0900
+Subject: [PATCH] setup: Don't use removed "tab_vborder" property
+
+---
+ src/ibus-m17n-preferences.ui | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/ibus-m17n-preferences.ui b/src/ibus-m17n-preferences.ui
+index e85fb15..19d3b47 100644
+--- a/src/ibus-m17n-preferences.ui
++++ b/src/ibus-m17n-preferences.ui
+@@ -98,7 +98,6 @@
+           <object class="GtkNotebook" id="pages">
+             <property name="visible">True</property>
+             <property name="can_focus">True</property>
+-            <property name="tab_vborder">3</property>
+             <child>
+               <object class="GtkAlignment" id="pageGeneral">
+                 <property name="visible">True</property>
+-- 
+1.9.3
+

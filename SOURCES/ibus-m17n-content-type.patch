@@ -1,0 +1,97 @@
+From e995acb046c9e6bd3ee48cb0cf1ccf9d754546e7 Mon Sep 17 00:00:00 2001
+From: Daiki Ueno <ueno@unixuser.org>
+Date: Thu, 6 Nov 2014 16:05:52 +0900
+Subject: [PATCH] engine: Disable key processing on password input
+
+---
+ src/engine.c | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)
+
+Index: ibus-m17n-1.3.4/src/engine.c
+===================================================================
+--- ibus-m17n-1.3.4.orig/src/engine.c
++++ ibus-m17n-1.3.4/src/engine.c
+@@ -24,6 +24,7 @@ struct _IBusM17NEngine {
+ #endif  /* HAVE_SETUP */
+     IBusPropList    *prop_list;
+     IBusKeymap      *us_keymap;
++    gboolean         has_focus;
+ };
+ 
+ struct _IBusM17NEngineClass {
+@@ -75,6 +76,10 @@ static void ibus_m17n_engine_property_ac
+                                             (IBusEngine             *engine,
+                                              const gchar            *prop_name,
+                                              guint                   prop_state);
++static void ibus_m17n_engine_set_content_type
++                                            (IBusEngine             *engine,
++                                             IBusInputPurpose        purpose,
++                                             IBusInputHints          hints);
+ 
+ static void ibus_m17n_engine_commit_string
+                                             (IBusM17NEngine         *m17n,
+@@ -226,6 +231,8 @@ ibus_m17n_engine_class_init (IBusM17NEng
+ 
+     engine_class->property_activate = ibus_m17n_engine_property_activate;
+ 
++    engine_class->set_content_type = ibus_m17n_engine_set_content_type;
++
+     if (!ibus_m17n_scan_class_name (G_OBJECT_CLASS_NAME (klass),
+                                     &lang, &name)) {
+         g_free (lang);
+@@ -667,6 +674,9 @@ ibus_m17n_engine_process_key_event (IBus
+         (IBusM17NEngineClass *) G_OBJECT_GET_CLASS (m17n);
+     guint original_keyval = keyval;
+ 
++    if (!m17n->has_focus)
++        return FALSE;
++
+     if (modifiers & IBUS_RELEASE_MASK)
+         return FALSE;
+ 
+@@ -704,6 +714,7 @@ ibus_m17n_engine_focus_in (IBusEngine *e
+ 
+     ibus_engine_register_properties (engine, m17n->prop_list);
+     ibus_m17n_engine_process_key (m17n, Minput_focus_in);
++    m17n->has_focus = TRUE;
+ 
+     parent_class->focus_in (engine);
+ }
+@@ -717,6 +728,7 @@ ibus_m17n_engine_focus_out (IBusEngine *
+        properly, we just reset the IC instead of passing Mfocus_out to
+        m17n-lib. */
+     minput_reset_ic (m17n->context);
++    m17n->has_focus = FALSE;
+ 
+     parent_class->focus_out (engine);
+ }
+@@ -812,6 +824,29 @@ ibus_m17n_engine_property_activate (IBus
+ }
+ 
+ static void
++ibus_m17n_engine_set_content_type (IBusEngine      *engine,
++                                   IBusInputPurpose purpose,
++                                   IBusInputHints   hints)
++{
++    IBusM17NEngine *m17n = (IBusM17NEngine *) engine;
++
++    /* For password and PIN input, disable key processing by emulating
++       'focus-out'.  */
++    switch (purpose) {
++    case IBUS_INPUT_PURPOSE_PASSWORD:
++    case IBUS_INPUT_PURPOSE_PIN:
++        ibus_m17n_engine_process_key (m17n, Minput_focus_out);
++        m17n->has_focus = FALSE;
++        break;
++
++    default:
++        ibus_m17n_engine_process_key (m17n, Minput_focus_in);
++        m17n->has_focus = TRUE;
++        break;
++    }
++}
++
++static void
+ ibus_m17n_engine_update_lookup_table (IBusM17NEngine *m17n)
+ {
+     ibus_lookup_table_clear (m17n->table);
